@@ -1,0 +1,3 @@
+kaggle competitions download -c m5-forecasting-accuracy --path ./data
+unzip ./data/m5-forecasting-accuracy.zip -d data
+# rm ./data/m5-forecasting-accuracy.zip
