@@ -1,3 +1,11 @@
 https://www.kaggle.com/code/mayer79/m5-forecast-poisson-loss-top-10
 https://github.com/Mcompetitions/M5-methods/tree/master/Code%20of%20Winning%20Methods/A1
 https://www.kaggle.com/code/kyakovlev/m5-three-shades-of-dark-darker-magic
+
+## Custom loss magic
+https://www.kaggle.com/code/chrisrichardmiles/trying-to-fit-full-gradient-into-loss-function
+https://www.kaggle.com/code/chrisrichardmiles/m5-wrmsse-custom-objective-and-custom-metric/notebook
+
+https://www.kaggle.com/c/m5-forecasting-accuracy/discussion/143070
+https://www.kaggle.com/c/m5-forecasting-accuracy/discussion/140564
+
