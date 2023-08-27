@@ -7,6 +7,7 @@ from typing import Any
 from loguru import logger
 from catboost import CatBoostClassifier
 from sklearn.ensemble import RandomForestRegressor
+import pandas as pd
 
 @PolarsCompatibleTransformer
 class MakeNameFeatures(BaseEstimator, TransformerMixin):
@@ -302,7 +303,7 @@ class CleanHonorific(BaseEstimator, TransformerMixin):
         )
         return X_transformed
 
-class PipelineCompatiableCatBoostClassifier(CatBoostClassifier):
+class PipelineCompatibleCatBoostClassifier(CatBoostClassifier):
     # def __init__(self, **kwargs):
     #     ...
 
@@ -334,4 +335,28 @@ class CleanAge(BaseEstimator, TransformerMixin):
             .with_columns(pl.Series(age_preds).alias('AgePred'))
             .with_columns(pl.coalesce(pl.col(['Age', 'AgePred'])).alias('Age'))
         )
+        return X_transformed
+
+@PolarsCompatibleTransformer
+class CleanFare(BaseEstimator, TransformerMixin):
+    def __init__(self):
+        ...
+    
+    def fit(self, X, y=None):
+        self.median_fare_by_pclass = (
+            X
+            .groupby('Pclass')
+            .agg(pl.col('Fare').median().alias('MedianFare'))
+        )
+        return self
+
+    def transform(self, X, y=None):
+        X_transformed = (
+            X
+            .join(self.median_fare_by_pclass, on='Pclass', how='left')
+            .with_columns(
+                pl.coalesce(["Fare", "MedianFare"]).alias("Fare")
+            )
+        )
+        
         return X_transformed
