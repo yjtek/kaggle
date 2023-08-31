@@ -10,26 +10,6 @@ from sklearn.ensemble import RandomForestRegressor
 import pandas as pd
 
 @PolarsCompatibleTransformer
-class MakeNameFeatures(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        ...
-
-    def fit(self, X, y=None):
-        return self
-    
-    def transform(self, X, y=None):
-        X_name_transformed = (
-            X
-            .select(
-                '*',
-                pl.col('Name').str.split(by=', ').apply(lambda x: x[0]).alias('LastName'),
-                pl.col('Name').str.split(by=', ').apply(lambda x: x[1]).str.split(by=' ').apply(lambda x: x[0]).alias('Honorific')
-            )
-            .drop('Name')
-        )
-        return X_name_transformed
-
-@PolarsCompatibleTransformer
 class TransformColToCategorical(BaseEstimator, TransformerMixin):
     def __init__(self, column_name: str, levels_threshold: int = 20, fill_nulls: str = '_NULL_VALUE_', replace_original: bool = True):
         self.levels_threshold = levels_threshold
@@ -264,45 +244,6 @@ class AddRandomColumn(BaseEstimator, TransformerMixin):
         )
         return X_transformed
 
-@PolarsCompatibleTransformer
-class CleanCabin(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        ...
-    
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X, y=None):
-        X_transformed = (
-            X
-            .with_columns(
-                pl.col("Cabin").fill_null('').alias('Cabin'),
-                pl.col("Cabin").str.slice(0,1).alias('CabinFirstLetter')
-            )
-        )
-        return X_transformed
-
-@PolarsCompatibleTransformer
-class CleanHonorific(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        ...
-    
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X, y=None):
-        X_transformed = (
-            X
-            # .with_columns(
-            #     pl.when(
-            #         pl.col("Honorific").is_in([''])
-            #     ).then(
-
-            #     )
-            # )
-        )
-        return X_transformed
-
 class PipelineCompatibleCatBoostClassifier(CatBoostClassifier):
     # def __init__(self, **kwargs):
     #     ...
@@ -315,48 +256,5 @@ class PipelineCompatibleCatBoostClassifier(CatBoostClassifier):
         )
         return model
 
-@PolarsCompatibleTransformer
-class CleanAge(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        self.rf = RandomForestRegressor()
-    
-    def fit(self, X, y=None):
-        X_without_missing = X.filter(pl.col('Age').is_not_null())
-        outcome = X_without_missing.select('Age').to_pandas()
-        features = X_without_missing.select('SibSp', 'Parch', 'Pclass', 'Fare').to_pandas()
-        self.rf.fit(features, outcome)
-        return self
 
-    def transform(self, X, y=None):
 
-        age_preds = self.rf.predict(X.select('SibSp', 'Parch', 'Pclass', 'Fare').to_pandas())
-        X_transformed = (
-            X
-            .with_columns(pl.Series(age_preds).alias('AgePred'))
-            .with_columns(pl.coalesce(pl.col(['Age', 'AgePred'])).alias('Age'))
-        )
-        return X_transformed
-
-@PolarsCompatibleTransformer
-class CleanFare(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        ...
-    
-    def fit(self, X, y=None):
-        self.median_fare_by_pclass = (
-            X
-            .groupby('Pclass')
-            .agg(pl.col('Fare').median().alias('MedianFare'))
-        )
-        return self
-
-    def transform(self, X, y=None):
-        X_transformed = (
-            X
-            .join(self.median_fare_by_pclass, on='Pclass', how='left')
-            .with_columns(
-                pl.coalesce(["Fare", "MedianFare"]).alias("Fare")
-            )
-        )
-        
-        return X_transformed
