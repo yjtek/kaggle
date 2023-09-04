@@ -28,7 +28,7 @@ class MakeIsWomanOrBoyIndicator(BaseEstimator, TransformerMixin):
         return X_transformed
 
 @PolarsCompatibleTransformer
-class MakeFamilyWomanBoySurvivedRate(BaseEstimator, TransformerMixin):
+class MakeFamilySurvivedRate(BaseEstimator, TransformerMixin):
     def __init__(self, groups: list[str]):
         self.groups = groups
         self.group_namestring = '_'.join(self.groups)
@@ -38,6 +38,10 @@ class MakeFamilyWomanBoySurvivedRate(BaseEstimator, TransformerMixin):
             X
             .groupby(self.groups)
             .agg(
+                pl.col('PassengerId').n_unique().alias(f'FamilyCount_{self.group_namestring}'),
+
+                pl.col('Survived').sum().alias(f'FamilySurvivedCount_{self.group_namestring}'),
+
                 pl.col('IsWomanOrBoy').sum().alias(f'FamilyWomanOrBoyCount_{self.group_namestring}'),
 
                 pl.when(
@@ -48,8 +52,17 @@ class MakeFamilyWomanBoySurvivedRate(BaseEstimator, TransformerMixin):
                     0
                 ).sum().alias(f'FamilyWomanOrBoySurvivedCount_{self.group_namestring}'),
             )
+            # .with_columns(
+            #     pl.when(
+            #         pl.col(f'FamilyCount_{self.group_namestring}') == 1
+            #     ).then(
+            #         1
+            #     ).otherwise(
+            #         0
+            #     ).alias(f'FamilyCount_IsSingle')
+            # )
             .filter(
-                pl.col('')
+                pl.col(f'FamilyCount_{self.group_namestring}') > 1
             )
         )
         return self
@@ -69,7 +82,10 @@ class MakeFamilyWomanBoySurvivedRate(BaseEstimator, TransformerMixin):
             )
             .with_columns(
                 (pl.col(f'FamilyWomanOrBoySurvivedCount_{self.group_namestring}')/pl.col(f'FamilyWomanOrBoyCount_{self.group_namestring}'))
-                .alias(f'FamilyWomanOrBoySurvivedRate_{self.group_namestring}')
+                .alias(f'FamilyWomanOrBoySurvivedRate_{self.group_namestring}'),
+
+                (pl.col(f'FamilySurvivedCount_{self.group_namestring}')/pl.col(f'FamilyCount_{self.group_namestring}'))
+                .alias(f'FamilySurvivedRate_{self.group_namestring}')
             )
             .fill_nan(0)
         )

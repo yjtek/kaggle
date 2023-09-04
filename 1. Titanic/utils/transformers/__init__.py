@@ -188,8 +188,8 @@ class PipelineCompatibleCatBoostClassifier(CatBoostClassifier):
     # def __init__(self, **kwargs):
     #     ...
 
-    def __init__(self, random_seed: int):
-        super().__init__(verbose=False, random_seed=random_seed)
+    def __init__(self, random_seed: int, **kwargs):
+        super().__init__(verbose=False, random_seed=random_seed, **kwargs)
 
     def fit(self, X, y=None, **kwargs):
         self.cat_features = [colname for colname, coltype in dict(X.dtypes).items() if type(coltype) == pd.core.dtypes.dtypes.CategoricalDtype]

@@ -55,3 +55,45 @@ class CleanHonorific(BaseEstimator, TransformerMixin):
         #display(X_transformed.head())
         return X_transformed
 
+@PolarsCompatibleTransformer
+class CleanLastName(BaseEstimator, TransformerMixin):
+    def __init__(self):
+        ...
+    
+    def fit(self, X, y=None):
+        self.lastname_freq = (
+            X
+            .groupby('LastName')
+            .agg(
+                LastNameFreq = pl.col('PassengerId').count()
+            )
+        )
+        
+        return self
+
+    def transform(self, X, y=None):
+        X_transformed = (
+            X
+            .join(self.lastname_freq, on='LastName', how='left')
+            .with_columns(
+                LastNameClean = (pl.when(
+                    pl.col("HonorificGrouped") == 'man'
+                ).then(
+                    'noGroup'
+                ).otherwise(
+                    pl.col('LastName')
+                ))
+            )
+            .with_columns(
+                LastNameClean = (pl.when(
+                    pl.col('LastNameFreq') <= 1
+                ).then(
+                    'noGroup'
+                ).otherwise(
+                    pl.col('LastName')
+                ))
+            )
+        )
+        #display(X_transformed.head())
+        return X_transformed
+
