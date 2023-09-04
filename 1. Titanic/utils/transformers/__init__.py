@@ -122,66 +122,6 @@ class TransformColToBins:
         return X_transformed
 
 @PolarsCompatibleTransformer
-class AddFamilyUnitID(BaseEstimator, TransformerMixin):
-    def __init__(self, family_group: list[str]):
-        self.family_group: list[str] = family_group
-    
-    def fit(self, X, y=None):
-        self.rank_on_col = X.columns[0]
-        
-        return self
-    
-    def transform(self, X, y=None):
-        
-        X_transformed = (
-            X
-            .with_columns(
-                pl.concat_str(self.family_group).rank(method='dense').alias(f"groupid_{'_'.join(self.family_group)}")
-            )
-        )
-        return X_transformed
-
-@PolarsCompatibleTransformer
-class AddSurvivalRate(BaseEstimator, TransformerMixin):
-    def __init__(self, family_group: list[str]):
-        self.family_group = family_group
-        self.family_group_string = '_'.join(self.family_group)
-        self.groupid_col = f"groupid_{self.family_group_string}"
-
-    def fit(self, X, y=None):
-        self.survivalrate_by_family_group = (
-            X
-            .groupby(self.groupid_col)
-            .agg(
-                pl.sum('Survived').alias(f'survivedsum_{self.family_group_string}'),
-                pl.count('Survived').alias(f'survivedcount_{self.family_group_string}'),
-                #pl.mean('Survived').alias(f'survivedrate_{self.family_group_string}')
-            )
-        )
-
-        self.survivalrate_by_family_group
-
-        return self
-
-    def transform(self, X, y=None):
-        X_transformed = (
-            X
-            .join(self.survivalrate_by_family_group, on=self.groupid_col, how='left')
-            .with_columns(
-                pl.when(
-                    pl.col(f'survivedcount_{self.family_group_string}') > 1
-                ).then(
-                    ((pl.col(f'survivedsum_{self.family_group_string}')) / 
-                    (pl.col(f'survivedcount_{self.family_group_string}')))
-                ).otherwise(
-                    pl.lit(-1)
-                ).alias(f'survivalrate_{self.family_group_string}')
-            )
-            .drop([f'survivedsum_{self.family_group_string}', f'survivedcount_{self.family_group_string}'])
-        )
-        return X_transformed
-
-@PolarsCompatibleTransformer
 class DropColumns(BaseEstimator, TransformerMixin):
     def __init__(self, cols_to_drop: list[str] = [], regex_to_drop: str = '', drop_strings: bool = True):
         self.cols_to_drop: list[str] = cols_to_drop
@@ -247,6 +187,9 @@ class AddRandomColumn(BaseEstimator, TransformerMixin):
 class PipelineCompatibleCatBoostClassifier(CatBoostClassifier):
     # def __init__(self, **kwargs):
     #     ...
+
+    def __init__(self, random_seed: int):
+        super().__init__(verbose=False, random_seed=random_seed)
 
     def fit(self, X, y=None, **kwargs):
         self.cat_features = [colname for colname, coltype in dict(X.dtypes).items() if type(coltype) == pd.core.dtypes.dtypes.CategoricalDtype]

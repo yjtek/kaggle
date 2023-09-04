@@ -1,4 +1,4 @@
-from ..decorators import PolarsCompatibleTransformer
+from ...decorators import PolarsCompatibleTransformer
 from sklearn.base import BaseEstimator, TransformerMixin
 import polars as pl
 
@@ -16,7 +16,7 @@ class MakeNameFeatures(BaseEstimator, TransformerMixin):
             .select(
                 '*',
                 pl.col('Name').str.split(by=', ').apply(lambda x: x[0]).alias('LastName'),
-                pl.col('Name').str.split(by=', ').apply(lambda x: x[1]).str.split(by=' ').apply(lambda x: x[0]).alias('Honorific')
+                pl.col('Name').str.split(by=', ').apply(lambda x: x[1]).str.split(by='. ').apply(lambda x: x[0]).alias('Honorific')
             )
             .drop('Name')
         )
@@ -26,7 +26,11 @@ class MakeNameFeatures(BaseEstimator, TransformerMixin):
 @PolarsCompatibleTransformer
 class CleanHonorific(BaseEstimator, TransformerMixin):
     def __init__(self):
-        ...
+        self.honorific_map: dict = {
+            'woman': ['Miss', 'Mrs', 'Lady', 'Mlle', 'the Countess'],
+            'boy': ['Master'],
+            'man': [True]
+        }
     
     def fit(self, X, y=None):
         return self
@@ -34,12 +38,20 @@ class CleanHonorific(BaseEstimator, TransformerMixin):
     def transform(self, X, y=None):
         X_transformed = (
             X
-            # .with_columns(
-            #     pl.when(
-            #         pl.col("Honorific").is_in([''])
-            #     ).then(
-
-            #     )
-            # )
+            .with_columns(
+                HonorificGrouped = (pl.when(
+                    pl.col("Honorific").is_in(['Miss', 'Mrs', 'Lady', 'Mlle', 'the Countess'])
+                ).then(
+                    'woman'
+                ).when(
+                    pl.col('Honorific').is_in(['Master'])
+                ).then(
+                    'boy'
+                ).otherwise(
+                    'man'
+                ))
+            )
         )
+        #display(X_transformed.head())
         return X_transformed
+
