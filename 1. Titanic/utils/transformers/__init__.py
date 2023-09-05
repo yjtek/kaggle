@@ -8,6 +8,7 @@ from loguru import logger
 from catboost import CatBoostClassifier
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.manifold import Isomap
+from sklearn.decomposition import PCA, TruncatedSVD
 import pandas as pd
 
 @PolarsCompatibleTransformer
@@ -207,13 +208,14 @@ class StandardiseDF(BaseEstimator, TransformerMixin):
         
     def fit(self, X, y=None):
         self.numeric_cols = (
-            pl.from_pandas(df_clean)
-            .select(pl.exclude([pl.Categorical]))
+            X
+            .select(pl.exclude([pl.Categorical, pl.Utf8]))
+            .drop('Survived')
             .columns
         )
 
         self.means = (
-            pl.from_pandas(df_clean)
+            X
             .select(self.numeric_cols)
             .groupby(pl.lit(1).alias('dropcol'))
             .agg(pl.mean('*'))
@@ -222,7 +224,7 @@ class StandardiseDF(BaseEstimator, TransformerMixin):
         self.means = {key:value for key,value in zip(self.means.columns, self.means.row(0))}
 
         self.stds = (
-            pl.from_pandas(df_clean)
+            X
             .select(self.numeric_cols)
             .groupby(pl.lit(1).alias('dropcol'))
             .agg(pl.std('*'))
@@ -232,6 +234,7 @@ class StandardiseDF(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None):
+        
         X_transformed = (
             X
             .select(self.numeric_cols)
@@ -257,4 +260,68 @@ class ReduceDimIsoMap(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         X_transformed = pl.DataFrame(self.reducer.transform(X))
+        return X_transformed
+
+
+@PolarsCompatibleTransformer
+class ReduceDimPCA(BaseEstimator, TransformerMixin):
+    def __init__(self, n_components):
+        self.pca = PCA(n_components = n_components)
+
+    def fit(self, X, y=None):
+        self.pca.fit(X.to_pandas())
+        return self
+
+    def transform(self, X, y=None):
+        X_transformed = pl.DataFrame(
+            self.pca.transform(X)
+        )
+        return X_transformed
+
+@PolarsCompatibleTransformer
+class ReduceDimTruncSVD(BaseEstimator, TransformerMixin):
+    def __init__(self, n_components):
+        self.tsvd = TruncatedSVD(n_components = n_components)
+
+    def fit(self, X, y=None):
+        self.tsvd.fit(X)
+        return self
+
+    def transform(self, X, y=None):
+        X_transformed = pl.DataFrame(
+            self.tsvd.transform(X)
+        )
+        return X_transformed
+
+from sklearn.feature_selection import SelectKBest, mutual_info_classif
+
+@PolarsCompatibleTransformer
+class SelectKBestFeats(BaseEstimator, TransformerMixin):
+    def __init__(self, n_features=20):
+        self.skb = SelectKBest(mutual_info_classif, k=n_features)
+
+    def fit(self, X, y=None):
+        X_numeric_only = (
+            X
+            .select(pl.exclude([pl.Utf8, pl.Categorical]))
+            .drop('Survived')
+            .to_pandas()
+        )
+        self.skb.fit(X_numeric_only, np.array(X['Survived']).astype('int'))
+        self.non_numeric_cols = list(X.select(pl.col([pl.Utf8, pl.Categorical])).columns)
+        return self
+
+    def transform(self, X, y=None):
+        
+        if ('Survived' in X.columns):
+            X_transformed = (
+                X
+                .select(list(self.skb.get_feature_names_out()) + self.non_numeric_cols + ['Survived'])
+            )
+        else:
+            X_transformed = (
+                X
+                .select(list(self.skb.get_feature_names_out()) + self.non_numeric_cols)
+            )
+        
         return X_transformed
