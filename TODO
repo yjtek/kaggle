@@ -1,0 +1,18 @@
+- Samuele Mazzanti's all articles (https://towardsdatascience.com/your-features-are-important-it-doesnt-mean-they-are-good-ff468ae2e3d4)
+
+- Outliers, how to deal? Just pick 1
+
+- Crossvalidation (use sklearn built in if possible?)
+- Nested cross validation
+- Hyperparameter tuning
+    - Parallel search?
+
+- Multi-model comparison (add multiple model classes and auto compare)
+    - Parallel runs of models?
+
+- Calibration of model
+- Conformal prediction
+
+- Interpreting models
+
+- Model risk management

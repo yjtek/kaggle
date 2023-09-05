@@ -44,41 +44,6 @@ class TitanicDataset(Dataset):
         self.xtrain, self.xtest, self.ytrain, self.ytest = train_test_split(self.X, self.y, test_size=self.test_size, random_state=self.random_state)
 
 
-def clean_test_to_fit_answer_sheet(df: pl.DataFrame) -> pl.DataFrame:
-    map_wrong_to_right_names: dict = {
-        '''Assaf Khalil, Mrs. Mariana (Miriam")"''': '''Assaf Khalil, Mrs. Mariana ("Miriam")''',
-        '''Johnston, Mrs. Andrew G (Elizabeth Lily" Watson)"''': '''Johnston, Mrs. Andrew G (Elizabeth "Lily" Watson)''',
-        '''Katavelas, Mr. Vassilios (Catavelas Vassilios")"''': '''Katavelas, Mr. Vassilios ("Catavelas Vassilios")''',
-        '''Coutts, Mrs. William (Winnie Minnie" Treanor)"''': '''Coutts, Mrs. William (Winnie "Minnie" Treanor)''',
-        '''Hocking, Miss. Ellen Nellie""''': '''Hocking, Miss. Ellen "Nellie"''',
-        '''Thomas, Mrs. Alexander (Thamine Thelma")"''': '''Thomas, Mrs. Alexander (Thamine "Thelma")''',
-        '''Willer, Mr. Aaron (Abi Weller")"''': '''Willer, Mr. Aaron ("Abi Weller")''',
-        '''Lindeberg-Lind, Mr. Erik Gustaf (Mr Edward Lingrey")"''': '''Lindeberg-Lind, Mr. Erik Gustaf ("Mr Edward Lingrey")''',
-        '''Moubarek, Mrs. George (Omine Amenia" Alexander)"''': '''Moubarek, Mrs. George (Omine "Amenia" Alexander)''',
-        '''Johnston, Master. William Arthur Willie""''': '''Johnston, Master. William Arthur "Willie"''',
-        '''Khalil, Mrs. Betros (Zahie Maria" Elias)"''': '''Khalil, Mrs. Betros (Zahie "Maria" Elias)''',
-        '''Wells, Mrs. Arthur Henry (Addie" Dart Trevaskis)"''': '''Wells, Mrs. Arthur Henry ("Addie" Dart Trevaskis)''',
-        '''Daly, Miss. Margaret Marcella Maggie""''': '''Daly, Miss. Margaret Marcella "Maggie"''',
-        '''McCarthy, Miss. Catherine Katie""''': '''McCarthy, Miss. Catherine "Katie"''',
-        '''Rosenshine, Mr. George (Mr George Thorne")"''': '''Rosenshine, Mr. George ("Mr George Thorne")''',
-        '''Nakid, Mrs. Said (Waika Mary" Mowad)"''': '''Nakid, Mrs. Said (Waika "Mary" Mowad)''',
-        '''Dean, Miss. Elizabeth Gladys Millvina""''': '''Dean, Miss. Elizabeth Gladys "Millvina"''',
-        '''Riihivouri, Miss. Susanna Juhantytar Sanni""''': '''Riihivouri, Miss. Susanna Juhantytar "Sanni"''',
-        '''Cotterill, Mr. Henry Harry""''': '''Cotterill, Mr. Henry "Harry"''',
-        '''Wheeler, Mr. Edwin Frederick""''': '''Wheeler, Mr. Edwin "Frederick"''',
-        '''Nourney, Mr. Alfred (Baron von Drachstedt")"''': '''Nourney, Mr. Alfred ("Baron von Drachstedt")''',
-        '''Riordan, Miss. Johanna Hannah""''': '''Riordan, Miss. Johanna "Hannah"'''
-    }
-
-    df_clean = (
-        df
-        .with_columns(pl.col('Name').apply(lambda x: map_wrong_to_right_names.get(x)).alias('NameAmended'))
-        .with_columns(pl.when(pl.col('NameAmended').is_not_null()).then(pl.col('NameAmended')).otherwise(pl.col("Name")).alias('Name'))
-        .drop("NameAmended")
-    )
-
-    return df_clean
-
 def submit_answer(df):
     submission = pl.DataFrame({
         'PassengerId': df['PassengerId'],

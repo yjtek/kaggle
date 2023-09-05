@@ -1,6 +1,7 @@
 from ...decorators import PolarsCompatibleTransformer
 from sklearn.base import BaseEstimator, TransformerMixin
 import polars as pl
+import numpy as np
 
 @PolarsCompatibleTransformer
 class MakeIsWomanOrBoyIndicator(BaseEstimator, TransformerMixin):
@@ -81,10 +82,10 @@ class MakeFamilySurvivedRate(BaseEstimator, TransformerMixin):
                 )
             )
             .with_columns(
-                (pl.col(f'FamilyWomanOrBoySurvivedCount_{self.group_namestring}')/pl.col(f'FamilyWomanOrBoyCount_{self.group_namestring}'))
+                (pl.col(f'FamilyWomanOrBoySurvivedCount_{self.group_namestring}')/(pl.col(f'FamilyWomanOrBoyCount_{self.group_namestring}')+1))
                 .alias(f'FamilyWomanOrBoySurvivedRate_{self.group_namestring}'),
 
-                (pl.col(f'FamilySurvivedCount_{self.group_namestring}')/pl.col(f'FamilyCount_{self.group_namestring}'))
+                (pl.col(f'FamilySurvivedCount_{self.group_namestring}')/(pl.col(f'FamilyCount_{self.group_namestring}')+1))
                 .alias(f'FamilySurvivedRate_{self.group_namestring}')
             )
             .fill_nan(0)

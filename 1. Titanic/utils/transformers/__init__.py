@@ -7,11 +7,12 @@ from typing import Any
 from loguru import logger
 from catboost import CatBoostClassifier
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.manifold import Isomap
 import pandas as pd
 
 @PolarsCompatibleTransformer
 class TransformColToCategorical(BaseEstimator, TransformerMixin):
-    def __init__(self, column_name: str, levels_threshold: int = 20, fill_nulls: str = '_NULL_VALUE_', replace_original: bool = True):
+    def __init__(self, column_name: str, levels_threshold: int = 20, fill_nulls: str = '-1', replace_original: bool = True):
         self.levels_threshold = levels_threshold
         self.column_name = column_name
         self.fill_nulls = fill_nulls
@@ -199,5 +200,61 @@ class PipelineCompatibleCatBoostClassifier(CatBoostClassifier):
         )
         return model
 
+@PolarsCompatibleTransformer
+class StandardiseDF(BaseEstimator, TransformerMixin):
+    def __init__(self):
+        ...
+        
+    def fit(self, X, y=None):
+        self.numeric_cols = (
+            pl.from_pandas(df_clean)
+            .select(pl.exclude([pl.Categorical]))
+            .columns
+        )
 
+        self.means = (
+            pl.from_pandas(df_clean)
+            .select(self.numeric_cols)
+            .groupby(pl.lit(1).alias('dropcol'))
+            .agg(pl.mean('*'))
+            .drop('dropcol')
+        )
+        self.means = {key:value for key,value in zip(self.means.columns, self.means.row(0))}
 
+        self.stds = (
+            pl.from_pandas(df_clean)
+            .select(self.numeric_cols)
+            .groupby(pl.lit(1).alias('dropcol'))
+            .agg(pl.std('*'))
+            .drop('dropcol')
+        )
+        self.stds = {key:value for key,value in zip(self.stds.columns, self.stds.row(0))}
+        return self
+
+    def transform(self, X, y=None):
+        X_transformed = (
+            X
+            .select(self.numeric_cols)
+            .with_columns(*[
+                (pl.col(x) - self.means.get(x) / self.stds.get(x)).alias(x) 
+                for x in self.numeric_cols
+            ])
+            .hstack(
+                X.drop(self.numeric_cols)
+            )
+            .select(X.columns)
+        )
+        return X_transformed
+
+@PolarsCompatibleTransformer
+class ReduceDimIsoMap(BaseEstimator, TransformerMixin):
+    def __init__(self, n_components, **kwargs):
+        self.reducer = Isomap(n_components=n_components, **kwargs)
+        
+    def fit(self, X, y=None):
+        self.reducer.fit(X)
+        return self
+
+    def transform(self, X, y=None):
+        X_transformed = pl.DataFrame(self.reducer.transform(X))
+        return X_transformed
